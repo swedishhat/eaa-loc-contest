@@ -54,14 +54,20 @@ set_dist()
 ===========================
 Read and average distance measurements
 */
-float set_dist()
+void set_dist()
 {
   float avg = 0.0;
-  int samples = 32;
+  int samples = 16;
+   
+  // Set stick full forward
+  Serial.println("Set forward distance.....");
+  
+  // Debounce on the button press
   while(digitalRead(USER_SW) == HIGH){}
   Serial.println("Low detected. 500 ms debounce.");
   delay(500);
-  
+
+  // Iterate through 32 measurements from sonar and average them
   for(int i = 0; i < samples; i++)
   {
     avg += (rangeSensorPW_L.getRange() + rangeSensorPW_R.getRange()) / 2;
@@ -70,11 +76,52 @@ float set_dist()
     Serial.println(avg);
   }
 
+  // Debounce on the button release
+  while(digitalRead(USER_SW) == LOW){}
+  Serial.println("High detected. 500 ms debounce.");
+  delay(500);
+
+  // Calculate minimum distance
+  min_dist = (avg / samples);
+  Serial.print("MIN: ");
+  Serial.println(min_dist);
+  Serial.println();
+  
+  // Set stick full aft and record measurement
+  Serial.println("Set aft distance.....");
+  
+  // Debounce on the button press
+  while(digitalRead(USER_SW) == HIGH){}
+  Serial.println("Low detected. 500 ms debounce.");
+  delay(500);
+
+  // Reset the average
+  avg = 0.0;
+  
+  // Iterate through 32 measurements from sonar and average them
+  for(int i = 0; i < samples; i++)
+  {
+    avg += (rangeSensorPW_L.getRange() + rangeSensorPW_R.getRange()) / 2;
+    Serial.print(i);
+    Serial.print(": ");
+    Serial.println(avg);
+  }
+
+  // Debounce on the button release
   while(digitalRead(USER_SW) == LOW){}
   Serial.println("High detected. 500 ms debounce.");
   delay(500);
   
-  return (avg / samples);  
+  max_dist = (avg / samples);
+  Serial.print("MAX: ");
+  Serial.println(max_dist);
+  Serial.println();
+  
+  // Calculate total distance
+  total_dist = max_dist - min_dist;
+  Serial.print("Dist: ");
+  Serial.println(total_dist);
+  Serial.println();    
 }
 
 void setup()
@@ -94,6 +141,7 @@ void setup()
   pinMode(RANGE_R, INPUT);
   pinMode(RANGE_L, INPUT);
   pinMode(MOTOR,   OUTPUT);
+  digitalWrite(MOTOR, LOW);
 }
 
 void loop()
@@ -101,35 +149,27 @@ void loop()
   if(min_dist == 0.0 || max_dist == 0.0)
   {
     Serial.println("No valid distance presets detected.");
-    
-    // Set Full Forward
-    Serial.println("Set minimum distance.....");
-    min_dist = set_dist();
-    Serial.print("MIN: ");
-    Serial.println(min_dist);
-    Serial.println();
-    
-    // Set Full Aft
-    Serial.println("Set maximum distance.....");
-    max_dist = set_dist();
-    Serial.print("MAX: ");
-    Serial.println(max_dist);
-    Serial.println();
-    
-    // Calculate total distance
-    total_dist = max_dist - min_dist;
-    Serial.print("Dist: ");
-    Serial.println(total_dist);
-    Serial.println();
+    set_dist();
   }
 
   // Average both readings and load into measurement variable
   curr_meas = (rangeSensorPW_L.getRange() + rangeSensorPW_R.getRange()) / 2;
-
+  Serial.print(curr_meas);
+  Serial.print(" / ");
+  Serial.println(total_dist);
+  
   // Compare current range measurement against 90% of full range.
-  // If >90% shake the stick, otherwise, leave it off...
-  if(curr_meas >= (total_dist * 0.9)) digitalWrite(MOTOR, HIGH);
-  else digitalWrite(MOTOR, LOW);
+  // If >90%, shake the stick; otherwise, leave it off...
+  if((max_dist - curr_meas) <= (total_dist * 0.1))
+  {
+    Serial.println("<< STALL WARNING >>");
+    digitalWrite(MOTOR, HIGH);
+  }
+  else
+  {
+    Serial.println(">> You're Fine...<<");
+    digitalWrite(MOTOR, LOW);
+  }
 }
 
 
