@@ -5,16 +5,23 @@
 ===================================
 
 Version History:
-0.1: Breadboard example
+  * 0.1: Preliminary breadboard example
+
+TODO:
+  * Add EEPROM support for saving set points
+  * Add CALL/ACK routine to communicate w/
+    external process.
 */
 #include "Maxbotix.h"
 
+// Program constants
 #define SW_VER  0.1
 #define RANGE_R 5
 #define RANGE_L 6
 #define MOTOR   8
 #define USER_SW 9
 
+// Create Sonar objects
 Maxbotix rangeSensorPW_R(RANGE_R, Maxbotix::PW, Maxbotix::LV, Maxbotix::BEST);
 Maxbotix rangeSensorPW_L(RANGE_L, Maxbotix::PW, Maxbotix::LV, Maxbotix::BEST);
 
@@ -23,17 +30,30 @@ float max_dist   = 0.0;
 float total_dist = 0.0;
 float curr_meas  = 0.0;
 
+
+/*
+print_data()
+===========================
+Print range data to serial port. Format for parsing by external
+process such as PySerial or ESP8266 / NodeMCU
+*/
 void print_data()
 {
   Serial.print("L");
   Serial.print(rangeSensorPW_L.getRange());
-  Serial.print('\n');
+  Serial.println("l");
   
   Serial.print("R");
   Serial.print(rangeSensorPW_R.getRange());
-  Serial.print('\n');
+  Serial.println('r');
 }
 
+
+/*
+set_dist()
+===========================
+Read and average distance measurements
+*/
 float set_dist()
 {
   float avg = 0.0;
