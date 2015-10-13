@@ -1,34 +1,27 @@
 /*
-  Maxbotix advanced test
+===================================
+== SAVANNAH EAA SICK SHAKER DEMO ==
+==     Code By Patrick Lloyd     ==
+===================================
 
-  Instructions:
-  - Same as simple test
-
-  Filters:
-  * NONE (default): No filtering
-  * MEDIAN: Take the median of a sample
-  * HIGHEST_MODE: Take the mode of a sample. In case more than
-  one mode, the highest one is returned
-  * LOWEST_MODE: Take the mode of a sample. In case more than
-  one mode, the lowest one is returned
-  * BEST: Take the mode of a sample. In case more than one
-  mode is found, the median is returned
-  * SIMPLE: Continue reading until sample_size consecutive readings
-  are issued
-
+Version History:
+0.1: Breadboard example
 */
 #include "Maxbotix.h"
 
 #define SW_VER  0.1
+#define RANGE_R 5
+#define RANGE_L 6
+#define MOTOR   8
 #define USER_SW 9
 
+Maxbotix rangeSensorPW_R(RANGE_R, Maxbotix::PW, Maxbotix::LV, Maxbotix::BEST);
+Maxbotix rangeSensorPW_L(RANGE_L, Maxbotix::PW, Maxbotix::LV, Maxbotix::BEST);
 
-Maxbotix rangeSensorPW_L(6, Maxbotix::PW, Maxbotix::LV, Maxbotix::BEST);
-Maxbotix rangeSensorPW_R(5, Maxbotix::PW, Maxbotix::LV, Maxbotix::BEST);
-
-float min_dist = 0.0;
-float max_dist = 0.0;
-
+float min_dist   = 0.0;
+float max_dist   = 0.0;
+float total_dist = 0.0;
+float curr_meas  = 0.0;
 
 void print_data()
 {
@@ -66,9 +59,8 @@ float set_dist()
 
 void setup()
 {
+  // Serial Initialization and "welcome" message
   Serial.begin(115200);
-  pinMode(USER_SW, INPUT_PULLUP);
-
   Serial.println("===================================");
   Serial.println("== SAVANNAH EAA SICK SHAKER DEMO ==");
   Serial.println("==     Code By Patrick Lloyd     ==");
@@ -76,12 +68,20 @@ void setup()
   Serial.print(SW_VER);
   Serial.println(                        "         ==");
   Serial.println("===================================\n");
-    
+
+  // Set up GPIO
+  pinMode(USER_SW, INPUT_PULLUP);
+  pinMode(RANGE_R, INPUT);
+  pinMode(RANGE_L, INPUT);
+  pinMode(MOTOR,   OUTPUT);
 }
 
 void loop()
 {
-  if(min_dist == 0.0 || max_dist == 0.0){
+  if(min_dist == 0.0 || max_dist == 0.0)
+  {
+    Serial.println("No valid distance presets detected.");
+    
     // Set Full Forward
     Serial.println("Set minimum distance.....");
     min_dist = set_dist();
@@ -95,25 +95,21 @@ void loop()
     Serial.print("MAX: ");
     Serial.println(max_dist);
     Serial.println();
-   
+    
+    // Calculate total distance
+    total_dist = max_dist - min_dist;
     Serial.print("Dist: ");
-    Serial.println(max_dist - min_dist);
+    Serial.println(total_dist);
     Serial.println();
   }
-  
-  //{
-    
-  //}
-  
-  //i = analogRead(A0);
-  //val=(6762/(i-9))-4;
 
-  //Serial.print("IR: ");
-  //Serial.println(rangeSensorPW_LED.getRange());
-  
-  // PW
-  
-  
+  // Average both readings and load into measurement variable
+  curr_meas = (rangeSensorPW_L.getRange() + rangeSensorPW_R.getRange()) / 2;
+
+  // Compare current range measurement against 90% of full range.
+  // If >90% shake the stick, otherwise, leave it off...
+  if(curr_meas >= (total_dist * 0.9)) digitalWrite(MOTOR, HIGH);
+  else digitalWrite(MOTOR, LOW);
 }
 
 
